@@ -8,21 +8,19 @@ const timHowan = '100022971516931'
 let rawdata = fs.readFileSync('message_1.json')
 let rawdata2 = fs.readFileSync('message_2.json')
 
-try {
+if (!fs.existsSync('reports.json')) {
     fs.writeFileSync('reports.json', '{}', { flag: 'wx' })
-} catch (exception) {
-
 }
-
-try {
+if (!fs.existsSync('warns.json')) {
+    fs.writeFileSync('warns.json', '{}', { flag: 'wx' })
+}
+if (!fs.existsSync('commends.json')) {
     fs.writeFileSync('commends.json', '{}', { flag: 'wx' })
-} catch (exception) {
-
 }
-
 
 let realTimeReports = JSON.parse(fs.readFileSync('reports.json'))
-let commends = JSON.parse(fs.readFileSync('reports.json'))
+let commends = JSON.parse(fs.readFileSync('commends.json'))
+let warnings = JSON.parse(fs.readFileSync('warns.json'))
 let lastUserAction = {}
 
 function customizer(objValue, srcValue) {
@@ -32,28 +30,29 @@ function customizer(objValue, srcValue) {
 }
 
 let messages = _.mergeWith(JSON.parse(rawdata), JSON.parse(rawdata2), customizer)
-let bookmarks = messages.messages.filter(({content}) => content && content.startsWith('/bookmark')).map(bookmark => {
-    return bookmark.content.replace('/bookmark', '').trim()
-})
-console.log(bookmarks)
-
-
-let reports = messages.messages.filter(({content}) => content && content.startsWith('/report')).map(report => {
-    return report.content.replace('/report', '').trim()
-})
-console.log(reports)
-
 let groupedMessages = _.groupBy(messages.messages, 'sender_name')
-let myWarnings = groupedMessages['A-Ar Andrew Concepcion'].filter(({ content }) => content && content.startsWith('/warning') )
-let timWarnings = groupedMessages['Tim Howan'].filter(({ content }) => content && content.startsWith('/warning') )
+// let bookmarks = messages.messages.filter(({content}) => content && content.startsWith('/bookmark')).map(bookmark => {
+//     return bookmark.content.replace('/bookmark', '').trim()
+// })
+// console.log(bookmarks)
 
-let warnings = myWarnings.concat(timWarnings).map(warning => {
-    return {
-        name: warning.content.substring('/warning '.length, warning.content.length)
-    }
-})
 
-console.log('warnings:', _.countBy(warnings, 'name'))
+// let reports = messages.messages.filter(({content}) => content && content.startsWith('/report')).map(report => {
+//     return report.content.replace('/report', '').trim()
+// })
+// console.log(reports)
+
+
+// let myWarnings = groupedMessages['A-Ar Andrew Concepcion'].filter(({ content }) => content && content.startsWith('/warning') )
+// let timWarnings = groupedMessages['Tim Howan'].filter(({ content }) => content && content.startsWith('/warning') )
+
+// let warnings = myWarnings.concat(timWarnings).map(warning => {
+//     return {
+//         name: warning.content.substring('/warning '.length, warning.content.length)
+//     }
+// })
+
+// console.log('warnings:', _.countBy(warnings, 'name'))
 
 // let messages = JSON.parse(rawdata)
 // let groupedMessages = _.groupBy(messages.messages, 'sender_name')
@@ -80,9 +79,9 @@ login({appState: JSON.parse(fs.readFileSync('appstate.json', 'utf8'))}, (err, ap
     if(err) return console.error(err)
     var msg = {body: "Thanks for reporting!"}
 
-    api.getThreadInfo(threadID, (err, info) => {
-        console.log(info)
-    })
+    // api.getThreadInfo(threadID, (err, info) => {
+    //     console.log(info)
+    // })
 
     doCommands(api)
     let timerId = setInterval(() => {
@@ -103,7 +102,7 @@ const doCommands = (api) => {
             if (message.senderID === '1202351542') return true
             else {
                 const content = message.body
-                if (content && content.startsWith('/') && (lastUserAction[message.senderID] || 0) < (Date.now() - 30000)) {
+                if (content && content.startsWith('/') && (lastUserAction[message.senderID] || 0) < (Date.now() - (3 * 60 * 1000))) {
                     lastUserAction = _.assign(lastUserAction, {[message.senderID]: Date.now()})
                     return true 
                 } else {
@@ -117,110 +116,126 @@ const doCommands = (api) => {
             api.markAsRead(threadID)
             if (!content) return
             if (content.startsWith('/commands')) {
-                api.sendMessage({body: `
-/commands
-/faq
-/allcommends
-/commend <tag person> <commend reason>
-/allreports
-/report <tag person> <report reason>
-/kick <tag person>
-/bookmark <anything>
-                `}, threadID)
+                sendCommands(api)
             } else if (content.startsWith('/allreports')) {
                 api.sendMessage({body: JSON.stringify(realTimeReports, null ,'\t')}, threadID)
             } else if (content.startsWith('/allcommends')) {
                 api.sendMessage({body: JSON.stringify(commends, null ,'\t')}, threadID)
+            } else if (content.startsWith('/allwarns')) {
+                api.sendMessage({body: JSON.stringify(warnings, null ,'\t')}, threadID)
             } else if (content.startsWith('/commend')) {
-                console.log(message)
-                const userId = Object.keys(message.mentions)[0]
-                const mention = message.mentions[userId] //returns 'someVal'
-
-                if (!mention) {
-                    api.sendMessage({body: `Invalid commend! 
-
-"${content}".`}, threadID)
-                    return
-                } else if (commends[userId]) {
-                    commends = _.assign(commends, {[userId]: {
-                        name: mention,
-                        count: (commends[userId].count || 0) + 1, 
-                        commends: _.concat(commends[userId].reports || [], message.body.replace('/commend ', '').replace(mention, '').trim())
-                    }})
-                    console.log('reports: ', JSON.stringify(realTimeReports))
-                    fs.writeFileSync('reports.json', JSON.stringify(realTimeReports))
-                } else {
-                    commends = _.assign(commends, {[userId]: { 
-                        name: mention,
-                        count: 1, 
-                        commends: [message.body.replace('/commend ', '').replace(mention, '').trim()]
-                    }})
-                    fs.writeFileSync('commends.json', JSON.stringify(commends))
-                    console.log('commends: ', JSON.stringify(commends))
-                }
-                
-                api.sendMessage({body: `Thanks for commending ${mention}! Total number of commends: ${commends[userId].count}`}, threadID)
+                record(api, 'commend', commends, message)
             } else if (content.startsWith('/report')) {
                 console.log(message)
                 const userId = Object.keys(message.mentions)[0]
-                const mention = message.mentions[userId] //returns 'someVal'
 
-                if (!mention) {
-                    api.sendMessage({body: `Invalid report! 
-
-"${content}".`}, threadID)
-                    return
-                } else if (userId == timHowan) {
+                if (userId == timHowan) {
                     api.sendMessage({body: `Fuck you! I cannot be reported.`}, threadID)
                     return
                 } else if (userId === supremeLeader) {
                     api.sendMessage({body: `You cannot report the supreme leader.`}, threadID)
                     return
-                } else if (realTimeReports[userId]) {
-                    realTimeReports = _.assign(realTimeReports, {[userId]: {
-                        name: mention,
-                        count: (realTimeReports[userId].count || 0) + 1, 
-                        reports: _.concat(realTimeReports[userId].reports || [], message.body.replace('/report ', '').replace(mention, '').trim())
-                    }})
-                    console.log('reports: ', JSON.stringify(realTimeReports))
-                    fs.writeFileSync('reports.json', JSON.stringify(realTimeReports))
-                } else {
-                    realTimeReports = _.assign(realTimeReports, {[userId]: { 
-                        name: mention,
-                        count: 1, 
-                        reports: [message.body.replace('/report ', '').replace(mention, '').trim()]
-                    }})
-                    fs.writeFileSync('reports.json', JSON.stringify(realTimeReports))
-                    console.log('reports: ', JSON.stringify(realTimeReports))
                 }
                 
-                api.sendMessage({body: `Thanks for reporting ${mention}! Total number of reports: ${realTimeReports[userId].count}`}, threadID)
-            } else if (content.startsWith('/kick')) {
+                record(api, 'report', realTimeReports, message)
+            } else if (content.startsWith('/warn')) {
+                console.log(message)
                 const userId = Object.keys(message.mentions)[0]
-                const mention = message.mentions[userId] //returns 'someVal'
-                
-                if (!mention) {
-                    api.sendMessage({body: `Invalid kick command! 
-                    
-                    "${content}".`}, threadID)
-                    return
-                } else if (userId == timHowan) {
-                    api.sendMessage({body: `Fuck you! I cannot be kicked.`}, threadID)
+
+                if (userId == timHowan) {
+                    api.sendMessage({body: `Fuck you! I cannot be warned. I do what I want.`}, threadID)
                     return
                 } else if (userId === supremeLeader) {
-                    api.sendMessage({body: `You cannot kick the supreme leader.`}, threadID)
+                    api.sendMessage({body: `You cannot warn the supreme leader. The supreme leader warns you.`}, threadID)
                     return
-                } else if (message.senderID === supremeLeader) {
-                    api.sendMessage({body: `Kicking ${mention}...`}, threadID)
-                    api.removeUserFromGroup(Object.keys(message.mentions)[0], threadID, (err) => {
-                        console.log(err)
-                    })
-                } else {
-                    console.log(message.senderID)
-                    api.sendMessage({body: `Only the supreme leader can kick.`}, threadID)
                 }
+
+                if (message.senderID === supremeLeader) {
+                    record(api, 'warn', warnings, message, (err, state) => {
+                        if (err) return
+
+                        if (state[userId].count >= 3) {
+                            api.sendMessage({body: `3 strikes protocol initiated...`}, threadID)
+                            api.removeUserFromGroup(userId, threadID, (err) => {
+                                console.log(err)
+                            })
+                        }
+                    })
+                }
+            } else if (content.startsWith('/kick')) {
+                kick(api, message)
             } else if (content.startsWith('/faq')) {
-                api.sendMessage({body: `
+                sendFaq(api)
+            } else if (content && content.startsWith('/bookmark')) {
+
+            }
+        })
+        latestMessageTimeStamp = Number(history[0].timestamp)
+    })
+}
+
+
+const addWarning = (api) => {
+    
+}
+
+const record = (api, path, state, message, callback) => {
+    console.log(message)
+    const userId = Object.keys(message.mentions)[0]
+    const mention = message.mentions[userId] //returns 'someVal'
+
+    if (!mention) {
+        api.sendMessage({body: `Invalid ${path}! 
+
+"${content}".`}, threadID)
+        return
+    } else if (state[userId]) {
+        state = _.assign(state, {[userId]: {
+            name: mention,
+            count: (state[userId].count || 0) + 1, 
+            [`${path}s`]: _.concat(state[userId][`${path}s`] || [], message.body.replace(`/${path} `, '').replace(mention, '').trim())
+        }})
+    } else {
+        state = _.assign(state, {[userId]: { 
+            name: mention,
+            count: 1, 
+            [`${path}s`]: [message.body.replace(`/${path} `, '').replace(mention, '').trim()]
+        }})    
+    }
+    console.log(`${path}s: `, JSON.stringify(state))
+    fs.writeFileSync(`${path}s.json`, JSON.stringify(state))
+    api.sendMessage({body: `Thanks for ${path}ing ${mention}. Total number of ${path}s: ${state[userId].count}`}, threadID)
+    callback && callback(null, state)
+}
+
+const kick = (api, message) => {
+    const userId = Object.keys(message.mentions)[0]
+    const mention = message.mentions[userId] //returns 'someVal'
+    
+    if (!mention) {
+        api.sendMessage({body: `Invalid kick command! 
+        
+        "${content}".`}, threadID)
+        return
+    } else if (userId == timHowan) {
+        api.sendMessage({body: `Fuck you! I cannot be kicked.`}, threadID)
+        return
+    } else if (userId === supremeLeader) {
+        api.sendMessage({body: `You cannot kick the supreme leader.`}, threadID)
+        return
+    } else if (message.senderID === supremeLeader) {
+        api.sendMessage({body: `Kicking ${mention}...`}, threadID)
+        api.removeUserFromGroup(Object.keys(message.mentions)[0], threadID, (err) => {
+            console.log(err)
+        })
+    } else {
+        console.log(message.senderID)
+        api.sendMessage({body: `Only the supreme leader can kick.`}, threadID)
+    }
+}
+
+const sendFaq = (api) => {
+    api.sendMessage({body: `
 FAQ:
 
 Q: Why is this GC named progatory?
@@ -257,11 +272,20 @@ A: Sure! We require the following items:
     >problem statements ng homework mo
     >Bilugan ang mga parte ng code mo na nahihirapan ka
     >describe mo bakit ka nalilito o nahihirapan
-                `}, threadID)
-            } else if (content && content.startsWith('/bookmark')) {
+`}, threadID)
+}
 
-            }
-        })
-        latestMessageTimeStamp = Number(history[0].timestamp)
-    })
+const sendCommands = (api) => {
+    api.sendMessage({body: `
+/commands
+/faq
+/allcommends
+/commend <tag person> <commend reason>
+/allreports
+/report <tag person> <report reason>
+/allwarns
+/warn <tag person> <warn reason>
+/kick <tag person>
+/bookmark <anything>
+`}, threadID)
 }
