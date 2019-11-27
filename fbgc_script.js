@@ -6,7 +6,14 @@ const threadID = 1355449081244322
 let rawdata = fs.readFileSync('message_1.json')
 let rawdata2 = fs.readFileSync('message_2.json')
 
-let realTimeReports = {}
+try {
+    fs.writeFileSync('reports.json', '{}', { flag: 'wx' })
+} catch (exception) {
+
+}
+
+
+let realTimeReports = JSON.parse(fs.readFileSync('reports.json'))
 let lastUserAction = {}
 
 function customizer(objValue, srcValue) {
@@ -100,10 +107,14 @@ const doCommands = (api) => {
             const content = message.body
             api.markAsRead(threadID)
             if (content && content.startsWith('/report')) {
-                const mention = message.mentions[Object.keys(message.mentions)[0]] //returns 'someVal'
+                console.log(message)
+                const userId = Object.keys(message.mentions)[0]
+                const mention = message.mentions[userId] //returns 'someVal'
 
                 if (!mention) {
-                    api.sendMessage({body: `Invalid report! ${content}.`}, threadID)
+                    api.sendMessage({body: `Invalid report! 
+
+                    "${content}".`}, threadID)
                     return
                 }
 
@@ -117,18 +128,32 @@ const doCommands = (api) => {
                     return
                 }
 
-                if (realTimeReports[mention]) {
-                    realTimeReports = _.assign(reports, {[mention]: { count: (realTimeReports[mention].count || 0) + 1}})
+                if (realTimeReports[userId]) {
+                    realTimeReports = _.assign(realTimeReports, {[userId]: {
+                        name: mention,
+                        count: (realTimeReports[userId].count || 0) + 1, 
+                        reports: _.concat(realTimeReports[userId].reports || [], message.body.replace('/report ', '').replace(mention, '').trim())
+                    }})
+                    console.log('reports: ', JSON.stringify(realTimeReports))
+                    fs.writeFileSync('reports.json', JSON.stringify(realTimeReports))
                 } else {
-                    realTimeReports = _.assign(reports, {[mention]: { count: 1}})
+                    realTimeReports = _.assign(realTimeReports, {[userId]: { 
+                        name: mention,
+                        count: 1, 
+                        reports: [message.body.replace('/report ', '').replace(mention, '').trim()]
+                    }})
+                    fs.writeFileSync('reports.json', JSON.stringify(realTimeReports))
+                    console.log('reports: ', JSON.stringify(realTimeReports))
                 }
                 
-                api.sendMessage({body: `Thanks for reporting ${mention}! Total number of reports: ${realTimeReports[mention].count}.`}, threadID)
+                api.sendMessage({body: `Thanks for reporting ${mention}! Total number of reports: ${realTimeReports[userId].count}`}, threadID)
             } else if (content && content.startsWith('/kick')) {
                 const mention = message.mentions[Object.keys(message.mentions)[0]] //returns 'someVal'
 
                 if (!mention) {
-                    api.sendMessage({body: `Invalid kick command! ${content}.`}, threadID)
+                    api.sendMessage({body: `Invalid kick command! 
+                    
+                    "${content}".`}, threadID)
                     return
                 } else if (mention === '@Tim Howan') {
                     api.sendMessage({body: `Fuck you! I cannot be kicked.`}, threadID)
@@ -184,8 +209,8 @@ A: Sure! We require the following items:
     >Bilugan ang mga parte ng code mo na nahihirapan ka
     >describe mo bakit ka nalilito o nahihirapan
                 `}, threadID)
+            } else if (content && content.startsWith('/bookmark')) {
             }
-
         })
         latestMessageTimeStamp = Number(history[0].timestamp)
     })
