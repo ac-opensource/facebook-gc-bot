@@ -2,6 +2,8 @@ const fs = require('fs')
 const _ = require('lodash')
 const login = require("facebook-chat-api")
 const threadID = 1355449081244322
+const supremeLeader = '1202351542'
+const timHowan = '100022971516931'
 
 let rawdata = fs.readFileSync('message_1.json')
 let rawdata2 = fs.readFileSync('message_2.json')
@@ -12,8 +14,15 @@ try {
 
 }
 
+try {
+    fs.writeFileSync('commends.json', '{}', { flag: 'wx' })
+} catch (exception) {
+
+}
+
 
 let realTimeReports = JSON.parse(fs.readFileSync('reports.json'))
+let commends = JSON.parse(fs.readFileSync('reports.json'))
 let lastUserAction = {}
 
 function customizer(objValue, srcValue) {
@@ -106,7 +115,52 @@ const doCommands = (api) => {
             console.log(latestMessageTimeStamp)
             const content = message.body
             api.markAsRead(threadID)
-            if (content && content.startsWith('/report')) {
+            if (!content) return
+            if (content.startsWith('/commands')) {
+                api.sendMessage({body: `
+/commands
+/faq
+/allcommends
+/commend <tag person> <commend reason>
+/allreports
+/report <tag person> <report reason>
+/kick <tag person>
+/bookmark <anything>
+                `}, threadID)
+            } else if (content.startsWith('/allreports')) {
+                api.sendMessage({body: JSON.stringify(realTimeReports, null ,'\t')}, threadID)
+            } else if (content.startsWith('/allcommends')) {
+                api.sendMessage({body: JSON.stringify(commends, null ,'\t')}, threadID)
+            } else if (content.startsWith('/commend')) {
+                console.log(message)
+                const userId = Object.keys(message.mentions)[0]
+                const mention = message.mentions[userId] //returns 'someVal'
+
+                if (!mention) {
+                    api.sendMessage({body: `Invalid commend! 
+
+"${content}".`}, threadID)
+                    return
+                } else if (commends[userId]) {
+                    commends = _.assign(commends, {[userId]: {
+                        name: mention,
+                        count: (commends[userId].count || 0) + 1, 
+                        commends: _.concat(commends[userId].reports || [], message.body.replace('/commend ', '').replace(mention, '').trim())
+                    }})
+                    console.log('reports: ', JSON.stringify(realTimeReports))
+                    fs.writeFileSync('reports.json', JSON.stringify(realTimeReports))
+                } else {
+                    commends = _.assign(commends, {[userId]: { 
+                        name: mention,
+                        count: 1, 
+                        commends: [message.body.replace('/commend ', '').replace(mention, '').trim()]
+                    }})
+                    fs.writeFileSync('commends.json', JSON.stringify(commends))
+                    console.log('commends: ', JSON.stringify(commends))
+                }
+                
+                api.sendMessage({body: `Thanks for commending ${mention}! Total number of commends: ${commends[userId].count}`}, threadID)
+            } else if (content.startsWith('/report')) {
                 console.log(message)
                 const userId = Object.keys(message.mentions)[0]
                 const mention = message.mentions[userId] //returns 'someVal'
@@ -114,21 +168,15 @@ const doCommands = (api) => {
                 if (!mention) {
                     api.sendMessage({body: `Invalid report! 
 
-                    "${content}".`}, threadID)
+"${content}".`}, threadID)
                     return
-                }
-
-                if (mention == '@Tim Howan') {
+                } else if (userId == timHowan) {
                     api.sendMessage({body: `Fuck you! I cannot be reported.`}, threadID)
                     return
-                }
-
-                if (mention == '@A-Ar Andrew Concepcion') {
+                } else if (userId === supremeLeader) {
                     api.sendMessage({body: `You cannot report the supreme leader.`}, threadID)
                     return
-                }
-
-                if (realTimeReports[userId]) {
+                } else if (realTimeReports[userId]) {
                     realTimeReports = _.assign(realTimeReports, {[userId]: {
                         name: mention,
                         count: (realTimeReports[userId].count || 0) + 1, 
@@ -147,21 +195,22 @@ const doCommands = (api) => {
                 }
                 
                 api.sendMessage({body: `Thanks for reporting ${mention}! Total number of reports: ${realTimeReports[userId].count}`}, threadID)
-            } else if (content && content.startsWith('/kick')) {
-                const mention = message.mentions[Object.keys(message.mentions)[0]] //returns 'someVal'
-
+            } else if (content.startsWith('/kick')) {
+                const userId = Object.keys(message.mentions)[0]
+                const mention = message.mentions[userId] //returns 'someVal'
+                
                 if (!mention) {
                     api.sendMessage({body: `Invalid kick command! 
                     
                     "${content}".`}, threadID)
                     return
-                } else if (mention === '@Tim Howan') {
+                } else if (userId == timHowan) {
                     api.sendMessage({body: `Fuck you! I cannot be kicked.`}, threadID)
                     return
-                } else if (mention === '@A-Ar Andrew Concepcion') {
+                } else if (userId === supremeLeader) {
                     api.sendMessage({body: `You cannot kick the supreme leader.`}, threadID)
                     return
-                } else if (message.senderID === '1202351542') {
+                } else if (message.senderID === supremeLeader) {
                     api.sendMessage({body: `Kicking ${mention}...`}, threadID)
                     api.removeUserFromGroup(Object.keys(message.mentions)[0], threadID, (err) => {
                         console.log(err)
@@ -170,7 +219,7 @@ const doCommands = (api) => {
                     console.log(message.senderID)
                     api.sendMessage({body: `Only the supreme leader can kick.`}, threadID)
                 }
-            } else if (content && content.startsWith('/faq')) {
+            } else if (content.startsWith('/faq')) {
                 api.sendMessage({body: `
 FAQ:
 
@@ -210,6 +259,7 @@ A: Sure! We require the following items:
     >describe mo bakit ka nalilito o nahihirapan
                 `}, threadID)
             } else if (content && content.startsWith('/bookmark')) {
+
             }
         })
         latestMessageTimeStamp = Number(history[0].timestamp)
