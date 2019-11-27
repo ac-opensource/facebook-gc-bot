@@ -1,10 +1,11 @@
 const fs = require('fs')
 const _ = require('lodash')
 const login = require("facebook-chat-api")
-const threadID = 1355449081244322
 
-let rawdata = fs.readFileSync('message_1.json')
-let rawdata2 = fs.readFileSync('message_2.json')
+const config = require('config')
+
+const threadID = config.thread_id
+
 
 try {
     fs.writeFileSync('reports.json', '{}', { flag: 'wx' })
@@ -16,13 +17,7 @@ try {
 let realTimeReports = JSON.parse(fs.readFileSync('reports.json'))
 let lastUserAction = {}
 
-function customizer(objValue, srcValue) {
-    if (_.isArray(objValue)) {
-      return objValue.concat(srcValue)
-    }
-}
-
-let messages = _.mergeWith(JSON.parse(rawdata), JSON.parse(rawdata2), customizer)
+let messages = require('./messages.json')
 let bookmarks = messages.messages.filter(({content}) => content && content.startsWith('/bookmark')).map(bookmark => {
     return bookmark.content.replace('/bookmark', '').trim()
 })
