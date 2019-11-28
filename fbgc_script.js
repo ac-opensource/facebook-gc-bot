@@ -79,11 +79,8 @@ login({appState: JSON.parse(fs.readFileSync('appstate.json', 'utf8'))}, (err, ap
     // api.getThreadInfo(threadID, (err, info) => {
     //     console.log(info)
     // })
-
     doCommands(api)
-    let timerId = setInterval(() => {
-        doCommands(api)
-    }, 15000)
+  
 })
 
 const doCommands = (api) => {
@@ -91,22 +88,29 @@ const doCommands = (api) => {
         if(message.type !== 'message') return
         if(err) return console.error(err)
         
+        const content = message.body
+        if (!content) return
+
+        if ((content.toLowerCase().includes("ar-ar") || content.toLowerCase().includes("ar ar")) && message.senderID !== '100043858043477') {
+            api.setMessageReaction(":thumbsdown:", message.messageID)
+            api.sendMessage({body: "It's A-Ar not ar-ar."}, threadID)
+        }
+        if ((
+            content.toLowerCase().includes("javascript") || 
+            content.toLowerCase().includes("js") ||
+            content.toLowerCase().includes("php")
+            ) && message.senderID !== '100043858043477') {
+            api.setMessageReaction(":haha:", message.messageID)
+        }
+
         if (message.senderID !== '1202351542') {
-            const content = message.body
-            if (content && content.startsWith('/') && (lastUserAction[message.senderID] || 0) < (Date.now() - (3 * 60 * 1000))) {
+            if (content.startsWith('/') && (lastUserAction[message.senderID] || 0) < (Date.now() - (3 * 60 * 1000))) {
                 lastUserAction = _.assign(lastUserAction, {[message.senderID]: Date.now()})
-                return
             } else {
                 return
             }   
         }
-
-        const content = message.body
-        if (content.includes("ar-ar") && message.senderID !== '100043858043477') {
-            api.sendMessage({body: "It's A-Ar not ar-ar."}, threadID)
-        }
         api.markAsRead(threadID)
-        if (!content) return
         
         if (content.startsWith('/commands')) {
             sendCommands(api)
