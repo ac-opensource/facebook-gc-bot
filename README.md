@@ -31,7 +31,7 @@ npm run gen:appstate
 * put all message.json files under /messages directory
 
 ```
-npm run gen:appstate
+npm run gen:messages
 
 
 // should generate messages.json in root directory
