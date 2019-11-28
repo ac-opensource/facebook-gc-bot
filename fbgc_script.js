@@ -1,12 +1,12 @@
 const fs = require('fs')
 const _ = require('lodash')
 const login = require("facebook-chat-api")
-const threadID = 1355449081244322
 const supremeLeader = '1202351542'
 const timHowan = '100022971516931'
+const config = require('config')
 
-let rawdata = fs.readFileSync('message_1.json')
-let rawdata2 = fs.readFileSync('message_2.json')
+const threadID = config.thread_id
+
 
 if (!fs.existsSync('reports.json')) {
     fs.writeFileSync('reports.json', '{}', { flag: 'wx' })
@@ -23,18 +23,14 @@ let commends = JSON.parse(fs.readFileSync('commends.json'))
 let warnings = JSON.parse(fs.readFileSync('warns.json'))
 let lastUserAction = {}
 
-function customizer(objValue, srcValue) {
-    if (_.isArray(objValue)) {
-      return objValue.concat(srcValue)
-    }
-}
 
-let messages = _.mergeWith(JSON.parse(rawdata), JSON.parse(rawdata2), customizer)
+let messages = require('./messages.json')
+let bookmarks = messages.messages.filter(({content}) => content && content.startsWith('/bookmark')).map(bookmark => {
+    return bookmark.content.replace('/bookmark', '').trim()
+})
+console.log(bookmarks)
+
 let groupedMessages = _.groupBy(messages.messages, 'sender_name')
-// let bookmarks = messages.messages.filter(({content}) => content && content.startsWith('/bookmark')).map(bookmark => {
-//     return bookmark.content.replace('/bookmark', '').trim()
-// })
-// console.log(bookmarks)
 
 
 // let reports = messages.messages.filter(({content}) => content && content.startsWith('/report')).map(report => {

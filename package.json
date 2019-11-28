@@ -4,11 +4,15 @@
   "description": "",
   "main": "fbgc_script.js",
   "scripts": {
+    "start": "node fbgc_script.js",
+    "gen:appstate": "node scripts/login.js",
+    "gen:messages": "node scripts/messages.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "config": "^3.2.4",
     "facebook-chat-api": "^1.6.1",
     "lodash": "^4.17.15"
   }
