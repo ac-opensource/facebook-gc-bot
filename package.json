@@ -13,7 +13,8 @@
   "license": "ISC",
   "dependencies": {
     "config": "^3.2.4",
-    "facebook-chat-api": "^1.6.1",
-    "lodash": "^4.17.15"
+    "facebook-chat-api": "github:ac-opensource/facebook-chat-api",
+    "lodash": "^4.17.15",
+    "mqtt": "^3.0.0"
   }
 }

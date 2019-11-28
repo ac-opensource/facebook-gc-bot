@@ -3,6 +3,7 @@ const _ = require('lodash')
 const login = require("facebook-chat-api")
 const supremeLeader = '1202351542'
 const timHowan = '100022971516931'
+const progaTory = '100043858043477'
 const config = require('config')
 
 const threadID = config.thread_id
@@ -86,88 +87,95 @@ login({appState: JSON.parse(fs.readFileSync('appstate.json', 'utf8'))}, (err, ap
 })
 
 const doCommands = (api) => {
-    api.getThreadHistory(threadID, 50, undefined, (err, history) => {
+    api.listenMqtt((err, message) => {
+        if(message.type !== 'message') return
         if(err) return console.error(err)
-        /*
-            Handle message history
-        */
-        history.filter(message => {
-            return message.isUnread
-        })
-        .filter(message => {
-            if (message.senderID === '1202351542') return true
-            else {
-                const content = message.body
-                if (content && content.startsWith('/') && (lastUserAction[message.senderID] || 0) < (Date.now() - (3 * 60 * 1000))) {
-                    lastUserAction = _.assign(lastUserAction, {[message.senderID]: Date.now()})
-                    return true 
-                } else {
-                    return false
-                }   
-            }
-        })
-        .forEach(message => {
-            console.log(latestMessageTimeStamp)
+        
+        if (message.senderID !== '1202351542') {
             const content = message.body
-            api.markAsRead(threadID)
-            if (!content) return
-            if (content.startsWith('/commands')) {
-                sendCommands(api)
-            } else if (content.startsWith('/allreports')) {
-                api.sendMessage({body: JSON.stringify(realTimeReports, null ,'\t')}, threadID)
-            } else if (content.startsWith('/allcommends')) {
-                api.sendMessage({body: JSON.stringify(commends, null ,'\t')}, threadID)
-            } else if (content.startsWith('/allwarns')) {
-                api.sendMessage({body: JSON.stringify(warnings, null ,'\t')}, threadID)
-            } else if (content.startsWith('/commend')) {
-                record(api, 'commend', commends, message)
-            } else if (content.startsWith('/report')) {
-                console.log(message)
-                const userId = Object.keys(message.mentions)[0]
+            if (content && content.startsWith('/') && (lastUserAction[message.senderID] || 0) < (Date.now() - (3 * 60 * 1000))) {
+                lastUserAction = _.assign(lastUserAction, {[message.senderID]: Date.now()})
+                return
+            } else {
+                return
+            }   
+        }
 
-                if (userId == timHowan) {
-                    api.sendMessage({body: `Fuck you! I cannot be reported.`}, threadID)
-                    return
-                } else if (userId === supremeLeader) {
-                    api.sendMessage({body: `You cannot report the supreme leader.`}, threadID)
-                    return
-                }
-                
-                record(api, 'report', realTimeReports, message)
-            } else if (content.startsWith('/warn')) {
-                console.log(message)
-                const userId = Object.keys(message.mentions)[0]
+        const content = message.body
+        if (content.includes("ar-ar") && message.senderID !== '100043858043477') {
+            api.sendMessage({body: "It's A-Ar not ar-ar."}, threadID)
+        }
+        api.markAsRead(threadID)
+        if (!content) return
+        
+        if (content.startsWith('/commands')) {
+            sendCommands(api)
+        } else if (content.startsWith('/allreports')) {
+            api.sendMessage({body: JSON.stringify(realTimeReports, null ,'\t')}, threadID)
+        } else if (content.startsWith('/allcommends')) {
+            api.sendMessage({body: JSON.stringify(commends, null ,'\t')}, threadID)
+        } else if (content.startsWith('/allwarns')) {
+            api.sendMessage({body: JSON.stringify(warnings, null ,'\t')}, threadID)
+        } else if (content.startsWith('/commend')) {
+            record(api, 'commend', commends, message)
+        } else if (content.startsWith('/report')) {
+            console.log(message)
+            const userId = Object.keys(message.mentions)[0]
 
-                if (userId == timHowan) {
-                    api.sendMessage({body: `Fuck you! I cannot be warned. I do what I want.`}, threadID)
-                    return
-                } else if (userId === supremeLeader) {
-                    api.sendMessage({body: `You cannot warn the supreme leader. The supreme leader warns you.`}, threadID)
-                    return
-                }
-
-                if (message.senderID === supremeLeader) {
-                    record(api, 'warn', warnings, message, (err, state) => {
-                        if (err) return
-
-                        if (state[userId].count >= 3) {
-                            api.sendMessage({body: `3 strikes protocol initiated...`}, threadID)
-                            api.removeUserFromGroup(userId, threadID, (err) => {
-                                console.log(err)
-                            })
-                        }
-                    })
-                }
-            } else if (content.startsWith('/kick')) {
-                kick(api, message)
-            } else if (content.startsWith('/faq')) {
-                sendFaq(api)
-            } else if (content && content.startsWith('/bookmark')) {
-
+            if (userId == timHowan) {
+                api.sendMessage({body: `Fuck you! I cannot be reported.`}, threadID)
+                return
+            } else if (userId === supremeLeader) {
+                api.sendMessage({body: `You cannot report the supreme leader.`}, threadID)
+                return
             }
-        })
-        latestMessageTimeStamp = Number(history[0].timestamp)
-    })
+            
+            record(api, 'report', realTimeReports, message)
+        } else if (content.startsWith('/warn')) {
+            console.log(message)
+            const userId = Object.keys(message.mentions)[0]
+
+            if (userId == timHowan) {
+                api.sendMessage({body: `Fuck you! I cannot be warned. I do what I want.`}, threadID)
+                return
+            } else if (userId === supremeLeader) {
+                api.sendMessage({body: `You cannot warn the supreme leader. The supreme leader warns you.`}, threadID)
+                return
+            }
+
+            if (message.senderID === supremeLeader) {
+                record(api, 'warn', warnings, message, (err, state) => {
+                    if (err) return
+
+                    if (state[userId].count >= 3) {
+                        api.sendMessage({body: `3 strikes protocol initiated...`}, threadID)
+                        api.removeUserFromGroup(userId, threadID, (err) => {
+                            console.log(err)
+                        })
+                    }
+                })
+            }
+        } else if (content.startsWith('/kick')) {
+            kick(api, message)
+        } else if (content.startsWith('/faq')) {
+            sendFaq(api)
+        } else if (content && content.startsWith('/bookmark')) {
+
+        }
+        // history.filter(message => {
+        //     return message.isUnread
+        // })
+        // .filter(message => {
+            
+        // })
+        // .forEach(message => {
+            
+        // })
+        // latestMessageTimeStamp = Number(history[0].timestamp)
+    });
+    // api.getThreadHistory(threadID, 50, undefined, (err, history) => {
+        
+    // })
 }
 
 
@@ -271,8 +279,10 @@ A: Sure! We require the following items:
 `}, threadID)
 }
 
+const backTicks = "```"
 const sendCommands = (api) => {
     api.sendMessage({body: `
+${backTicks}
 /commands
 /faq
 /allcommends
@@ -283,5 +293,6 @@ const sendCommands = (api) => {
 /warn <tag person> <warn reason>
 /kick <tag person>
 /bookmark <anything>
+${backTicks}
 `}, threadID)
 }
