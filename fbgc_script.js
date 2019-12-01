@@ -1,13 +1,10 @@
 const fs = require('fs')
 const _ = require('lodash')
 const login = require("facebook-chat-api")
-const supremeLeader = '1202351542'
-const timHowan = '100022971516931'
-const progaTory = '100043858043477'
 const config = require('config')
-
+const supremeLeader = config.supremeLeader
+const immunes = config.immunes
 const threadID = config.thread_id
-
 
 if (!fs.existsSync('reports.json')) {
     fs.writeFileSync('reports.json', '{}', { flag: 'wx' })
@@ -23,7 +20,8 @@ let realTimeReports = JSON.parse(fs.readFileSync('reports.json'))
 let commends = JSON.parse(fs.readFileSync('commends.json'))
 let warnings = JSON.parse(fs.readFileSync('warns.json'))
 let lastUserAction = {}
-
+const cursed = ['react native', 'xamarin', 'ionic', 'nativescript', 'phonegap', 'electron']
+const meme = ['javascript', 'js', 'php', 'julia']
 
 let messages = require('./messages.json')
 let bookmarks = messages.messages.filter(({content}) => content && content.startsWith('/bookmark')).map(bookmark => {
@@ -63,9 +61,6 @@ let participantsWithChatsCount = _.uniqBy(messages.participants, 'name').map(par
 
 _.sortBy(participantsWithChatsCount, 'chats')
 .reverse()
-.filter(pwc => {
-    return pwc.chats === 0 
-})
 .forEach(pwc => {
     console.log(pwc)
 })
@@ -79,9 +74,19 @@ login({appState: JSON.parse(fs.readFileSync('appstate.json', 'utf8'))}, (err, ap
     // api.getThreadInfo(threadID, (err, info) => {
     //     console.log(info)
     // })
+    api.sendMessage({body: uuidv4()}, threadID)
+    setInterval(() => {
+        api.sendMessage({body: uuidv4()}, threadID)
+    }, 900000)
     doCommands(api)
-  
 })
+
+function uuidv4() {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+      var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
+}
 
 const doCommands = (api) => {
     api.listenMqtt((err, message) => {
@@ -91,19 +96,20 @@ const doCommands = (api) => {
         const content = message.body
         if (!content) return
 
-        if ((content.toLowerCase().includes("ar-ar") || content.toLowerCase().includes("ar ar")) && message.senderID !== '100043858043477') {
+        if ((content.toLowerCase().includes("ar-ar") || content.toLowerCase().includes("ar ar")) && message.senderID !== progaTory) {
             api.setMessageReaction(":thumbsdown:", message.messageID)
             api.sendMessage({body: "It's A-Ar not ar-ar."}, threadID)
-        }
-        if ((
-            content.toLowerCase().includes("javascript") || 
-            content.toLowerCase().includes("js") ||
-            content.toLowerCase().includes("php")
-            ) && message.senderID !== '100043858043477') {
-            api.setMessageReaction(":haha:", message.messageID)
+        } else {
+            if (meme.some(word => content.toLowerCase().includes(word))) {
+                api.setMessageReaction(":haha:", message.messageID)
+            }
+    
+            if (cursed.some(word => content.toLowerCase().includes(word))) {
+                api.setMessageReaction(":angry:", message.messageID)
+            }
         }
 
-        if (message.senderID !== '1202351542') {
+        if (message.senderID !== supremeLeader) {
             if (content.startsWith('/') && (lastUserAction[message.senderID] || 0) < (Date.now() - (3 * 60 * 1000))) {
                 lastUserAction = _.assign(lastUserAction, {[message.senderID]: Date.now()})
             } else {
@@ -115,9 +121,22 @@ const doCommands = (api) => {
         if (content.startsWith('/commands')) {
             sendCommands(api)
         } else if (content.startsWith('/allreports')) {
-            api.sendMessage({body: JSON.stringify(realTimeReports, null ,'\t')}, threadID)
-        } else if (content.startsWith('/allcommends')) {
-            api.sendMessage({body: JSON.stringify(commends, null ,'\t')}, threadID)
+            let body = ''
+            Object.keys(realTimeReports).forEach(key => {
+                const report = realTimeReports[key]
+                body = body.concat(`${report.name}\ncount: ${report.count}\nlast report: \n${(report.reports || []).slice(-1).pop() || 'n/a'}\n\n`)
+            })
+            api.sendMessage({body: body}, threadID, (err) => {
+                console.log(err)
+            })        } else if (content.startsWith('/allcommends')) {
+            let body = ''
+            Object.keys(commends).forEach(key => {
+                const commend = commends[key]
+                body = body.concat(`${commend.name}\ncount: ${commend.count}\last commend: \n${(commend.commends || []).slice(-1).pop() || 'n/a'}\n\n`)
+            })
+            api.sendMessage({body: body}, threadID, (err) => {
+                console.log(err)
+            })
         } else if (content.startsWith('/allwarns')) {
             api.sendMessage({body: JSON.stringify(warnings, null ,'\t')}, threadID)
         } else if (content.startsWith('/commend')) {
@@ -126,7 +145,7 @@ const doCommands = (api) => {
             console.log(message)
             const userId = Object.keys(message.mentions)[0]
 
-            if (userId == timHowan) {
+            if (immunes.some(immuneUser => userId.includes(immuneUser))) {
                 api.sendMessage({body: `Fuck you! I cannot be reported.`}, threadID)
                 return
             } else if (userId === supremeLeader) {
@@ -139,7 +158,7 @@ const doCommands = (api) => {
             console.log(message)
             const userId = Object.keys(message.mentions)[0]
 
-            if (userId == timHowan) {
+            if (immunes.some(immuneUser => userId.includes(immuneUser))) {
                 api.sendMessage({body: `Fuck you! I cannot be warned. I do what I want.`}, threadID)
                 return
             } else if (userId === supremeLeader) {
@@ -163,8 +182,10 @@ const doCommands = (api) => {
             kick(api, message)
         } else if (content.startsWith('/faq')) {
             sendFaq(api)
-        } else if (content && content.startsWith('/bookmark')) {
-
+        } else if (content && content.startsWith('/rules')) {
+            sendRules(api)
+        } else if (content && content.startsWith('/intro')) {
+            sendIntro(api)
         }
         // history.filter(message => {
         //     return message.isUnread
@@ -223,7 +244,7 @@ const kick = (api, message) => {
     if (!mention) {
         api.sendMessage({body: `Invalid kick command! 
         
-        "${content}".`}, threadID)
+"${content}".`}, threadID)
         return
     } else if (userId == timHowan) {
         api.sendMessage({body: `Fuck you! I cannot be kicked.`}, threadID)
@@ -245,16 +266,8 @@ const kick = (api, message) => {
 const sendFaq = (api) => {
     api.sendMessage({body: `
 FAQ:
-
 Q: Why is this GC named progatory?
 A: Programmers Purgatory, where lost programmer souls go
-
-Q: Rules? 
-A:
-    1. No trolling
-    2. You can debate but within context
-    3. Ask questions responsibly
-    4. No illegal stuffs
 
 Q: What is this group for?
 A: Knowledge sharing for IT/Dev related things
@@ -276,18 +289,33 @@ A: Okay lang pero from time to time participate ka sa GC. Kasi may monthly culli
 
 Q: Pwede po pahelp sa assignment ko?
 A: Sure! We require the following items:
-    >existing code mo
-    >problem statements ng homework mo
-    >Bilugan ang mga parte ng code mo na nahihirapan ka
-    >describe mo bakit ka nalilito o nahihirapan
+    - existing code mo
+    - problem statements ng homework mo
+    - Bilugan ang mga parte ng code mo na nahihirapan ka
+    - describe mo bakit ka nalilito o nahihirapan
 `}, threadID)
 }
 
 const backTicks = "```"
+
+const sendRules = (api) => {
+api.sendMessage({body: `
+${backTicks}
+Rules:
+1. No trolling
+2. You can debate but within context
+3. Ask questions responsibly
+4. No illegal stuffs
+${backTicks}
+`}, threadID)
+}
+
 const sendCommands = (api) => {
     api.sendMessage({body: `
 ${backTicks}
 /commands
+/intro
+/rules
 /faq
 /allcommends
 /commend <tag person> <commend reason>
@@ -298,5 +326,16 @@ ${backTicks}
 /kick <tag person>
 /bookmark <anything>
 ${backTicks}
+`}, threadID)
+}
+
+const sendIntro = (api) => {
+api.sendMessage({body: `
+Please introduce yourself
+
+# Personal intro
+# Work/School
+# Tech Stack
+# Why are you in this GC
 `}, threadID)
 }
