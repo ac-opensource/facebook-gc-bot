@@ -4,15 +4,17 @@
   "description": "",
   "main": "fbgc_script.js",
   "scripts": {
-    "start": "node fbgc_script.js",
+    "start": "node -r esm fbgc_script.js",
     "gen:appstate": "node scripts/login.js",
     "gen:messages": "node scripts/messages.js",
+    "gen:seed": "node scripts/seed.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
     "config": "^3.2.4",
+    "esm": "^3.2.25",
     "facebook-chat-api": "github:ac-opensource/facebook-chat-api",
     "lodash": "^4.17.15",
     "mqtt": "^3.0.0"
