@@ -120,109 +120,114 @@ function uuidv4() {
 }
 
 const doCommands = (api) => {
-    api.listenMqtt((err, message) => {
-        if(message.type !== 'message') return
-        if(err) return console.error(err)
-        
-        const content = message.body
-        if (!content) return
-
-        // if ((content.toLowerCase().includes("ar-ar") || content.toLowerCase().includes("ar ar")) && message.senderID !== progaTory) {
-        //     api.setMessageReaction(":thumbsdown:", message.messageID)
-        //     api.sendMessage({body: "It's A-Ar not ar-ar."}, threadID)
-        // } else {
-        //     if (meme.some(word => content.toLowerCase().includes(word))) {
-        //         api.setMessageReaction(":haha:", message.messageID)
-        //     }
-    
-        //     if (cursed.some(word => content.toLowerCase().includes(word))) {
-        //         api.setMessageReaction(":angry:", message.messageID)
-        //     }
-        // }
-
-        if (message.senderID !== supremeLeader) {
-            if (content.startsWith('/') && 
-                validCommands.some(validCommand => message.body.startsWith(validCommand)) &&
-                (lastUserAction[message.senderID] || 0) < (Date.now() - (3 * 60 * 1000))) {
-                lastUserAction = _.assign(lastUserAction, {[message.senderID]: Date.now()})
-            } else {
-                return
-            }   
-        }
-        api.markAsRead(threadID)
-        
-        if (content.startsWith('/commands')) {
-            sendCommands(api, threadID)
-        } else if (content.startsWith('/allreports')) {
-            let body = ''
-            Object.keys(realTimeReports).forEach(key => {
-                const report = realTimeReports[key]
-                body = body.concat(`${report.name}\ncount: ${report.count}\nlast report: \n${(report.reports || []).slice(-1).pop() || 'n/a'}\n\n`)
-            })
-            api.sendMessage({body: body}, threadID, (err) => {
-                console.log(err)
-            })        } else if (content.startsWith('/allcommends')) {
-            let body = ''
-            Object.keys(commends).forEach(key => {
-                const commend = commends[key]
-                body = body.concat(`${commend.name}\ncount: ${commend.count}\last commend: \n${(commend.commends || []).slice(-1).pop() || 'n/a'}\n\n`)
-            })
-            api.sendMessage({body: body}, threadID, (err) => {
-                console.log(err)
-            })
-        } else if (content.startsWith('/allwarns')) {
-            api.sendMessage({body: JSON.stringify(warnings, null ,'\t')}, threadID)
-        } else if (content.startsWith('/commend')) {
-            record(api, 'commend', commends, message)
-        } else if (content.startsWith('/report')) {
-            console.log(message)
-            const userId = Object.keys(message.mentions)[0]
-
-            if (immunes.some(immuneUser => userId.includes(immuneUser))) {
-                api.sendMessage({body: `Fuck you! I cannot be reported.`}, threadID)
-                return
-            } else if (userId === supremeLeader) {
-                api.sendMessage({body: `You cannot report the supreme leader.`}, threadID)
-                return
-            }
+    try {
+        api.listenMqtt((err, message) => {
+            if(message.type !== 'message') return
+            if(err) return console.error(err)
             
-            record(api, 'report', realTimeReports, message)
-        } else if (content.startsWith('/warn')) {
-            console.log(message)
-            const userId = Object.keys(message.mentions)[0]
-
-            if (immunes.some(immuneUser => userId.includes(immuneUser))) {
-                api.sendMessage({body: `Fuck you! I cannot be warned. I do what I want.`}, threadID)
-                return
-            } else if (userId === supremeLeader) {
-                api.sendMessage({body: `You cannot warn the supreme leader. The supreme leader warns you.`}, threadID)
-                return
+            const content = message.body
+            if (!content) return
+    
+            // if ((content.toLowerCase().includes("ar-ar") || content.toLowerCase().includes("ar ar")) && message.senderID !== progaTory) {
+            //     api.setMessageReaction(":thumbsdown:", message.messageID)
+            //     api.sendMessage({body: "It's A-Ar not ar-ar."}, threadID)
+            // } else {
+            //     if (meme.some(word => content.toLowerCase().includes(word))) {
+            //         api.setMessageReaction(":haha:", message.messageID)
+            //     }
+        
+            //     if (cursed.some(word => content.toLowerCase().includes(word))) {
+            //         api.setMessageReaction(":angry:", message.messageID)
+            //     }
+            // }
+    
+            if (message.senderID !== supremeLeader) {
+                if (content.startsWith('/') && 
+                    validCommands.some(validCommand => message.body.startsWith(validCommand)) &&
+                    (lastUserAction[message.senderID] || 0) < (Date.now() - (3 * 60 * 1000))) {
+                    lastUserAction = _.assign(lastUserAction, {[message.senderID]: Date.now()})
+                } else {
+                    return
+                }   
             }
-
-            if (message.senderID === supremeLeader) {
-                record(api, 'warn', warnings, message, (err, state) => {
-                    if (err) return
-
-                    if (state[userId].count >= 3) {
-                        api.sendMessage({body: `3 strikes protocol initiated...`}, threadID)
-                        api.removeUserFromGroup(userId, threadID, (err) => {
-                            console.log(err)
-                        })
-                    }
+            api.markAsRead(threadID)
+            
+            if (content.startsWith('/commands')) {
+                sendCommands(api, threadID)
+            } else if (content.startsWith('/allreports')) {
+                let body = ''
+                Object.keys(realTimeReports).forEach(key => {
+                    const report = realTimeReports[key]
+                    body = body.concat(`${report.name}\ncount: ${report.count}\nlast report: \n${(report.reports || []).slice(-1).pop() || 'n/a'}\n\n`)
                 })
+                api.sendMessage({body: body}, threadID, (err) => {
+                    console.log(err)
+                })        } else if (content.startsWith('/allcommends')) {
+                let body = ''
+                Object.keys(commends).forEach(key => {
+                    const commend = commends[key]
+                    body = body.concat(`${commend.name}\ncount: ${commend.count}\last commend: \n${(commend.commends || []).slice(-1).pop() || 'n/a'}\n\n`)
+                })
+                api.sendMessage({body: body}, threadID, (err) => {
+                    console.log(err)
+                })
+            } else if (content.startsWith('/allwarns')) {
+                api.sendMessage({body: JSON.stringify(warnings, null ,'\t')}, threadID)
+            } else if (content.startsWith('/commend')) {
+                record(api, 'commend', commends, message)
+            } else if (content.startsWith('/report')) {
+                console.log(message)
+                const userId = Object.keys(message.mentions)[0]
+    
+                if (immunes.some(immuneUser => userId.includes(immuneUser))) {
+                    api.sendMessage({body: `Fuck you! I cannot be reported.`}, threadID)
+                    return
+                } else if (userId === supremeLeader) {
+                    api.sendMessage({body: `You cannot report the supreme leader.`}, threadID)
+                    return
+                }
+                
+                record(api, 'report', realTimeReports, message)
+            } else if (content.startsWith('/warn')) {
+                console.log(message)
+                const userId = Object.keys(message.mentions)[0]
+    
+                if (immunes.some(immuneUser => userId.includes(immuneUser))) {
+                    api.sendMessage({body: `Fuck you! I cannot be warned. I do what I want.`}, threadID)
+                    return
+                } else if (userId === supremeLeader) {
+                    api.sendMessage({body: `You cannot warn the supreme leader. The supreme leader warns you.`}, threadID)
+                    return
+                }
+    
+                if (message.senderID === supremeLeader) {
+                    record(api, 'warn', warnings, message, (err, state) => {
+                        if (err) return
+    
+                        if (state[userId].count >= 3) {
+                            api.sendMessage({body: `3 strikes protocol initiated...`}, threadID)
+                            api.removeUserFromGroup(userId, threadID, (err) => {
+                                console.log(err)
+                            })
+                        }
+                    })
+                }
+            } else if (content.startsWith('/kick')) {
+                kick(api, message)
+            } else if (content.startsWith('/faq')) {
+                sendFaq(api, threadID)
+            } else if (content.startsWith('/rules')) {
+                sendRules(api, threadID)
+            } else if (content.startsWith('/intro')) {
+                sendIntro(api, threadID)
+            } else if (content.startsWith('/whois set')) {
+                setWhoIs(api, whois, message)
+            } else if (content.startsWith('/whois')) {
+                whoIs(api, whois, message)
             }
-        } else if (content.startsWith('/kick')) {
-            kick(api, message)
-        } else if (content.startsWith('/faq')) {
-            sendFaq(api, threadID)
-        } else if (content.startsWith('/rules')) {
-            sendRules(api, threadID)
-        } else if (content.startsWith('/intro')) {
-            sendIntro(api, threadID)
-        } else if (content.startsWith('/whois set')) {
-            setWhoIs(api, whois, message)
-        } else if (content.startsWith('/whois')) {
-            whoIs(api, whois, message)
-        }
-    });
+        });
+    } catch(e) {
+        doCommands(api)
+    }
+    
 }
