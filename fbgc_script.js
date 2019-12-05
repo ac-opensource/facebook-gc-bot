@@ -6,6 +6,7 @@ const supremeLeader = config.supremeLeader
 const immunes = config.immunes
 const threadID = config.thread_id
 const https = require('https')
+
 import {sendFaq} from './commands/faq'
 import {sendRules} from './commands/rules'
 import {sendIntro} from './commands/intro'
@@ -73,13 +74,13 @@ login({appState: JSON.parse(fs.readFileSync('appstate.json', 'utf8'))}, (err, ap
     if(err) return console.error(err)
     var msg = {body: "Thanks for reporting!"}
 
-    api.getThreadInfo(threadID, (err, info) => {
-        console.log(info)
-    })
-    sendJoke(api)
-    setInterval(() => {
-        sendJoke(api)
-    }, 900000)
+    // api.getThreadInfo(threadID, (err, info) => {
+    //     console.log(info)
+    // })
+    // sendJoke(api)
+    // setInterval(() => {
+    //     sendJoke(api)
+    // }, 900000)
     
     doCommands(api)
 })
